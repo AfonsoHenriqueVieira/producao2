@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Últimos registros</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body style="background:#fff">
+<div class="table-wrap">
+<table>
+<thead><tr>
+<th>Data/Hora</th><th>Linha</th><th>Código</th><th>Formato</th>
+<th>Paletes</th><th>Produção</th><th>Refugo</th><th>Ações</th>
+</tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+<script src="js/storage.js"></script>
+<script>
+function render() {
+    const dados = getProducoes().sort((a,b)=>new Date(b.dataHora)-new Date(a.dataHora)).slice(0,12);
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = "";
+    if (!dados.length) {
+        tbody.innerHTML = '<tr><td colspan="8">Nenhum registro.</td></tr>';
+        return;
+    }
+    dados.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+        <td>${r.data} ${r.hora}</td>
+        <td>${r.linha}</td>
+        <td>${r.codigoProduto}</td>
+        <td>${r.formatoPalete}</td>
+        <td>${r.quantidadePaletes}</td>
+        <td>${Number(r.quantidadeProduzida).toLocaleString("pt-BR")}</td>
+        <td>${Number(r.pesoTotalRefugo).toLocaleString("pt-BR")}</td>
+        <td>
+          <button class="small-btn" onclick="editar('${r.id}')">Editar</button>
+          <button class="small-btn" onclick="relatorio('${r.id}')">⚙ Relatório</button>
+        </td>`;
+        tbody.appendChild(tr);
+    });
+}
+function editar(id) {
+    localStorage.setItem("editarProducaoId", id);
+    parent.location.href = "producao.html";
+}
+function relatorio(id) {
+    location.href = `relatorio/relatorio.html?id=${encodeURIComponent(id)}`;
+}
+render();
+</script>
+</body>
+</html>

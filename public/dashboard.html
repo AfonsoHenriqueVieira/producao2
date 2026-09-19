@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard - Controle de Produção</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+<h2>Controle</h2>
+<nav>
+<a class="active" href="#geral">Geral</a>
+<a href="#linha">Linha</a>
+<a href="producao.html">Produção</a>
+<a href="index.html">Início</a>
+</nav>
+</aside>
+
+<main class="content">
+<div class="topbar"><h1>Dashboard</h1><span>Indicadores de produção</span></div>
+
+<section id="geral">
+<div class="cards">
+<div class="card"><div>Itens produzidos</div><div class="metric" id="kpiItens">0</div></div>
+<div class="card"><div>Total de paletes</div><div class="metric" id="kpiPaletes">0</div></div>
+<div class="card"><div>Refugo total</div><div class="metric" id="kpiRefugo">0</div></div>
+</div>
+
+<div class="grid-2">
+<div class="card chart-box"><h3>Participação por tipo de produto</h3><canvas id="graficoTipos"></canvas></div>
+<div class="card chart-box"><h3>Produção mês a mês por produto</h3><canvas id="graficoMensal"></canvas></div>
+</div>
+</section>
+
+<section id="linha" style="margin-top:25px">
+<div class="card">
+<h2>Produção por Linha</h2>
+<div class="filters">
+<div class="field"><label>Código</label><input id="fCodigo" inputmode="numeric"></div>
+<div class="field"><label>Equipe</label><input id="fEquipe"></div>
+<div class="field"><label>Linha</label><select id="fLinha"><option value="">Todas</option><option>L1</option><option>L3</option><option>L6</option><option>L7</option></select></div>
+<div class="field"><label>Formato</label><input id="fFormato" type="number"></div>
+<div class="field"><label>Data inicial</label><input id="fDataIni" type="date"></div>
+<div class="field"><label>Data final</label><input id="fDataFim" type="date"></div>
+</div>
+<button class="btn btn-primary" onclick="renderTabela()">Filtrar</button>
+<div class="table-wrap" style="margin-top:15px">
+<table><thead><tr>
+<th>Data</th><th>Linha</th><th>Equipe</th><th>Código</th><th>Formato</th><th>Produção</th><th>Paletes</th><th>Refugo</th>
+</tr></thead><tbody id="tbodyLinha"></tbody></table>
+</div>
+</div>
+</section>
+</main>
+</div>
+
+<script src="js/storage.js"></script>
+<script>
+let tiposChart, mensalChart;
+
+function tipoProduto(codigo) {
+    // Ajuste esta função conforme sua tabela real de códigos.
+    // Exemplo inicial:
+    const c = String(codigo);
+    if (c.startsWith("1")) return "Higiênico";
+    if (c.startsWith("2")) return "Toalha";
+    return "Institucional";
+}
+
+function dados() {
+    return getProducoes();
+}
+
+function renderDashboard() {
+    const d = dados();
+    const itens = d.reduce((s,r)=>s+Number(r.quantidadeProduzida||0),0);
+    const paletes = d.reduce((s,r)=>s+Number(r.quantidadePaletes||0),0);
+    const refugo = d.reduce((s,r)=>s+Number(r.pesoTotalRefugo||0),0);
+    document.getElementById("kpiItens").textContent=itens.toLocaleString("pt-BR");
+    document.getElementById("kpiPaletes").textContent=paletes.toLocaleString("pt-BR");
+    document.getElementById("kpiRefugo").textContent=refugo.toLocaleString("pt-BR");
+
+    const tipos = ["Higiênico","Toalha","Institucional"];
+    const valores = tipos.map(t=>d.filter(r=>tipoProduto(r.codigoProduto)===t)
+        .reduce((s,r)=>s+Number(r.quantidadeProduzida||0),0));
+
+    if(tiposChart) tiposChart.destroy();
+    tiposChart = new Chart(document.getElementById("graficoTipos"), {
+        type:"doughnut",
+        data:{labels:tipos,datasets:[{data:valores}]},
+        options:{responsive:true,maintainAspectRatio:false}
+    });
+
+    const meses = {};
+    d.forEach(r=>{
+        const dt=new Date(r.dataHora);
+        if(isNaN(dt)) return;
+        const chave=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;
+        if(!meses[chave]) meses[chave]={Higiênico:0,Toalha:0,Institucional:0};
+        meses[chave][tipoProduto(r.codigoProduto)] += Number(r.quantidadeProduzida||0);
+    });
+    const labels=Object.keys(meses).sort();
+    const datasets=tipos.map(t=>({label:t,data:labels.map(m=>meses[m][t])}));
+    if(mensalChart) mensalChart.destroy();
+    mensalChart=new Chart(document.getElementById("graficoMensal"),{
+        type:"bar",data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false}
+    });
+    renderTabela();
+}
+
+function renderTabela(){
+    let d=dados();
+    const codigo=document.getElementById("fCodigo").value.trim();
+    const equipe=document.getElementById("fEquipe").value.trim().toLowerCase();
+    const linha=document.getElementById("fLinha").value;
+    const formato=document.getElementById("fFormato").value;
+    const ini=document.getElementById("fDataIni").value;
+    const fim=document.getElementById("fDataFim").value;
+
+    d=d.filter(r=>{
+        const dt=new Date(r.dataHora);
+        const data=dt.toISOString().slice(0,10);
+        return (!codigo||String(r.codigoProduto)===codigo) &&
+               (!equipe||String(r.equipe||"").toLowerCase().includes(equipe)) &&
+               (!linha||r.linha===linha) &&
+               (!formato||String(r.formatoPalete)===formato) &&
+               (!ini||data>=ini) && (!fim||data<=fim);
+    });
+
+    document.getElementById("tbodyLinha").innerHTML=d.map(r=>`
+      <tr><td>${r.data} ${r.hora}</td><td>${r.linha}</td><td>${r.equipe||"-"}</td>
+      <td>${r.codigoProduto}</td><td>${r.formatoPalete}</td>
+      <td>${Number(r.quantidadeProduzida).toLocaleString("pt-BR")}</td>
+      <td>${r.quantidadePaletes}</td><td>${Number(r.pesoTotalRefugo).toLocaleString("pt-BR")}</td></tr>
+    `).join("") || '<tr><td colspan="8">Nenhum registro encontrado.</td></tr>';
+}
+renderDashboard();
+</script>
+</body>
+</html>

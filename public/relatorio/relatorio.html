@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Relatório de Produção</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<main class="content" style="margin-left:0;width:100%">
+<div class="topbar">
+<h1>Relatório de Produção</h1>
+<button onclick="window.print()">Imprimir / PDF</button>
+</div>
+<section class="card">
+<div id="relatorio"></div>
+</section>
+</main>
+<script src="../js/storage.js"></script>
+<script>
+const id = new URLSearchParams(location.search).get("id");
+const r = getProducoes().find(x => x.id === id);
+const el = document.getElementById("relatorio");
+if (!r) {
+  el.innerHTML = "<p>Registro não encontrado.</p>";
+} else {
+  const campos = [
+    ["Data",r.data],["Hora",r.hora],["Linha",r.linha],
+    ["Código do produto",r.codigoProduto],["Etiqueta inicial",r.etiquetaInicial],
+    ["Etiqueta final",r.etiquetaFinal],["Formato do palete",r.formatoPalete],
+    ["Sobra",r.sobra],["Refugo Maculatura",r.refugoMaculatura],
+    ["Refugo Filme Impresso",r.refugoFilmeImpresso],
+    ["Refugo Filme Liso",r.refugoFilmeLiso],["Refugo Papel",r.refugoPapel],
+    ["Quantidade de paletes",r.quantidadePaletes],
+    ["Quantidade produzida",r.quantidadeProduzida],
+    ["Peso total de refugo",r.pesoTotalRefugo],
+    ["Responsável",r.responsavel]
+  ];
+  el.innerHTML = `<h2>Registro ${r.id}</h2><table><tbody>${
+    campos.map(([a,b])=>`<tr><th>${a}</th><td>${b ?? ""}</td></tr>`).join("")
+  }</tbody></table>`;
+}
+</script>
+</body>
+</html>

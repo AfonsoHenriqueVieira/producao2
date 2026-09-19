@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Produção</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+    <h2>Controle</h2>
+    <nav>
+        <a href="dashboard.html">Dashboard</a>
+        <a class="active" href="producao.html">Produção</a>
+    </nav>
+</aside>
+
+<main class="content">
+<div class="topbar">
+    <h1>Registro de Produção</h1>
+    <a class="back" href="index.html">Início</a>
+</div>
+
+<section class="card form-card">
+<form id="formProducao">
+<input type="hidden" id="registroId">
+
+<div class="form-grid">
+    <div class="field"><label>Linha</label>
+        <select id="linha" required><option value="">Selecione</option><option>L1</option><option>L3</option><option>L6</option><option>L7</option></select>
+    </div>
+    <div class="field"><label>Código do produto</label>
+        <input id="codigoProduto" type="text" inputmode="numeric" pattern="[0-9]+" required>
+    </div>
+    <div class="field"><label>Etiqueta inicial</label>
+        <input id="etiquetaInicial" type="number" min="0" step="1" required>
+    </div>
+    <div class="field"><label>Etiqueta final</label>
+        <input id="etiquetaFinal" type="number" min="0" step="1" required>
+    </div>
+    <div class="field"><label>Formato do palete</label>
+        <input id="formatoPalete" type="number" min="1" step="1" required>
+    </div>
+    <div class="field"><label>Sobra</label>
+        <input id="sobra" type="number" min="0" step="1" value="0">
+    </div>
+    <div class="field"><label>Refugo Maculatura</label>
+        <input id="refugoMaculatura" type="number" min="0" step="1" value="0">
+    </div>
+    <div class="field"><label>Refugo Filme Impresso</label>
+        <input id="refugoFilmeImpresso" type="number" min="0" step="1" value="0">
+    </div>
+    <div class="field"><label>Refugo Filme Liso</label>
+        <input id="refugoFilmeLiso" type="number" min="0" step="1" value="0">
+    </div>
+    <div class="field"><label>Refugo Papel</label>
+        <input id="refugoPapel" type="number" min="0" step="1" value="0">
+    </div>
+    <div class="field"><label>Responsável</label>
+        <input id="responsavel" type="text" required>
+    </div>
+</div>
+
+<div class="results">
+    <div class="result"><small>Quantidade de Paletes</small><strong id="resultadoPaletes">0</strong></div>
+    <div class="result"><small>Quantidade Produzida</small><strong id="resultadoProducao">0</strong></div>
+    <div class="result"><small>Peso Total de Refugo</small><strong id="resultadoRefugo">0</strong></div>
+</div>
+
+<div id="message" class="message"></div>
+
+<div class="form-actions">
+    <button class="btn btn-primary" type="submit">Salvar Produção</button>
+</div>
+</form>
+</section>
+
+<section class="card iframe-card" style="margin-top:20px">
+    <h2>Últimos 12 registros</h2>
+    <iframe src="ultimos.html" id="iframeUltimos" title="Últimos registros"></iframe>
+</section>
+</main>
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/api.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const form = $("formProducao");
+
+function num(id) {
+    return Number($(id).value || 0);
+}
+
+function calcular() {
+    const inicial = num("etiquetaInicial");
+    const final = num("etiquetaFinal");
+    const formato = num("formatoPalete");
+
+    if (final > inicial && formato > 0) {
+        const paletes = final - inicial + 1;
+        const producao = paletes * formato;
+        $("resultadoPaletes").textContent = paletes.toLocaleString("pt-BR");
+        $("resultadoProducao").textContent = producao.toLocaleString("pt-BR");
+    } else {
+        $("resultadoPaletes").textContent = "0";
+        $("resultadoProducao").textContent = "0";
+    }
+
+    const refugo = num("refugoMaculatura") + num("refugoFilmeImpresso") +
+                   num("refugoFilmeLiso") + num("refugoPapel");
+    $("resultadoRefugo").textContent = refugo.toLocaleString("pt-BR");
+}
+
+["etiquetaInicial","etiquetaFinal","formatoPalete","refugoMaculatura",
+ "refugoFilmeImpresso","refugoFilmeLiso","refugoPapel"].forEach(id =>
+    $(id).addEventListener("input", calcular)
+);
+
+$("codigoProduto").addEventListener("input", e => {
+    e.target.value = e.target.value.replace(/\D/g, "");
+});
+
+function limpar() {
+    form.reset();
+    $("registroId").value = "";
+    ["sobra","refugoMaculatura","refugoFilmeImpresso","refugoFilmeLiso","refugoPapel"]
+        .forEach(id => $(id).value = "0");
+    calcular();
+    $("linha").focus();
+}
+
+form.addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const inicial = num("etiquetaInicial");
+    const final = num("etiquetaFinal");
+    const formato = num("formatoPalete");
+
+    if (final <= inicial) {
+        mostrar("A etiqueta final deve ser maior que a inicial.", false);
+        return;
+    }
+
+    const agora = new Date();
+    const registro = {
+        id: $("registroId").value || novoId(),
+        linha: $("linha").value,
+        codigoProduto: $("codigoProduto").value,
+        etiquetaInicial: inicial,
+        etiquetaFinal: final,
+        formatoPalete: formato,
+        sobra: num("sobra"),
+        refugoMaculatura: num("refugoMaculatura"),
+        refugoFilmeImpresso: num("refugoFilmeImpresso"),
+        refugoFilmeLiso: num("refugoFilmeLiso"),
+        refugoPapel: num("refugoPapel"),
+        quantidadePaletes: final - inicial + 1,
+        quantidadeProduzida: (final - inicial + 1) * formato,
+        pesoTotalRefugo: num("refugoMaculatura") + num("refugoFilmeImpresso") +
+                         num("refugoFilmeLiso") + num("refugoPapel"),
+        responsavel: $("responsavel").value.trim(),
+        dataHora: agora.toISOString(),
+        data: agora.toLocaleDateString("pt-BR"),
+        hora: agora.toLocaleTimeString("pt-BR")
+    };
+
+    const id = $("registroId").value;
+    if (id) atualizarLocal(registro);
+    else salvarLocal(registro);
+
+    const remoto = id ? await atualizarNoServidor(registro) : await enviarParaServidor(registro);
+
+    mostrar(remoto ? "Produção salva no banco e no celular." : "Produção salva localmente. Banco MySQL não conectado.", true);
+    limpar();
+
+    document.getElementById("iframeUltimos").contentWindow.location.reload();
+});
+
+function mostrar(texto, ok) {
+    const m = $("message");
+    m.textContent = texto;
+    m.className = "message " + (ok ? "ok" : "error");
+    setTimeout(() => m.className = "message", 3500);
+}
+
+calcular();
+</script>
+</body>
+</html>
